@@ -3,8 +3,8 @@ The Reckoning sculpture sensors and input devices.
 
 
 <p align="center">
-  <img src="docs/reckoningPinout" />
-  <img src="https://github.com/index01/theReckoning_sensors/blob/main/reckoningPinout.png?raw=true" />
+  <img src="https://github.com/Index01/theReckoning_sensors/blob/main/docs/reckoningPinout.png" width="350" alt="The
+  Reckoning" />
 </p>
 
 ## Quickstart
