@@ -1,6 +1,12 @@
 # TheReckoning
 The Reckoning sculpture sensors and input devices.
 
+
+<p align="center">
+  <img src="docs/reckoningPinout" />
+  <img src="https://github.com/index01/theReckoning_sensors/blob/main/reckoningPinout.png?raw=true" />
+</p>
+
 ## Quickstart
 Things to know for development, deployment and debugging.
 
