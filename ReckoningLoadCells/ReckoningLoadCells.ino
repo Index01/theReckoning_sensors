@@ -1,9 +1,11 @@
 #include <Ethernet.h>
 #include <EthernetUdp.h>
 #include <SPI.h>    
+#include <Wire.h>    
 #include <OSCMessage.h>
 #include "HX711.h"
 
+#define I2C_ADDRESS 0x50
 
 // Pin defs
 const uint8_t pin_cal_btn = 5;
@@ -25,11 +27,28 @@ HX711 loadCell2;
 EthernetUDP Udp;
 // Arduino's IP
 IPAddress ip(128, 32, 122, 252);
+IPAddress myDns(10, 10, 0, 1);
 // OSC destination IP
 IPAddress outIp(128, 32, 122, 125);
 const unsigned int outPort = 9999;
-byte mac[] = {0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED}; 
+byte mac[] = {0xCC, 0x00, 0xFF, 0xFF, 0x33, 0x33}; 
 
+
+byte readRegister(byte r)
+{
+  unsigned char v;
+  Wire.beginTransmission(I2C_ADDRESS);
+  Wire.write(r);  // Register to read
+  Wire.endTransmission();
+
+  Wire.requestFrom(I2C_ADDRESS, 1); // Read a byte
+  while(!Wire.available())
+  {
+    // Wait
+  }
+  v = Wire.read();
+  return v;
+}
 
 void calibrateLoadCells(){ 
   Serial.println("[+] Calibrating ...");
@@ -86,6 +105,15 @@ void sendOSCMsgs(int32_t lc1, int32_t lc2){
   analogWrite(pin_OSC_led, 0);
 }
 
+void printMac(){
+  Serial.print("[+] MAC set: ");
+  for(const auto adr:mac){
+    Serial.print(adr, HEX);
+  }
+  Serial.println();
+  Serial.print("[+] My IP: ");
+  Serial.println(Ethernet.localIP());
+}
 
 void setup() {
   Serial.begin(115200);
@@ -94,11 +122,44 @@ void setup() {
   pinMode(LED_BUILTIN, OUTPUT);
   pinMode(pin_cal_btn, INPUT_PULLUP);
   pinMode(pin_led_ext, OUTPUT);
-   
+
   // Initialize the HX711
   loadCell1.begin(PIN_DATA_LOADCELL1, PIN_CLK_LOADCELL1);
   loadCell2.begin(PIN_DATA_LOADCELL2, PIN_CLK_LOADCELL2);
   calibrateLoadCells();
+
+  // Start I2C bus
+  Wire.begin();
+
+  Serial.println("[+] Pre-ethernet config");
+  printMac();
+  // Read the MAC programmed in the 24AA02E48 chip
+  mac[0] = readRegister(0xFA);
+  mac[1] = readRegister(0xFB);
+  mac[2] = readRegister(0xFC);
+  mac[3] = readRegister(0xFD);
+  mac[4] = readRegister(0xFE);
+  mac[5] = readRegister(0xFF);
+
+  // init CS on pin 10
+  Ethernet.init(10);
+
+  // start the Ethernet connection:
+  Serial.println("[+] Initialize Ethernet");
+  Ethernet.begin(mac, ip, myDns);
+  Serial.println("[-] Failed to configure Ethernet");
+  if (Ethernet.hardwareStatus() == EthernetNoHardware) {
+    Serial.println("[-] Ethernet shield was not found");
+  }
+  if (Ethernet.linkStatus() == LinkOFF) {
+    Serial.println("[-] Ethernet cable is not connected");
+  }
+  // give the Ethernet shield a second to initialize:
+  delay(1000);
+  Serial.println("[+] Post-ethernet config");
+  printMac();
+
+   
   
 
   //Ethernet.begin(mac,ip);
@@ -130,6 +191,11 @@ void loop(){
     task1_nextExecution = now+task1_interval;
     ledState = !ledState;
     digitalWrite(LED_BUILTIN, ledState);
+    Serial.print("[+] MAC as read from chip: ");
+    for(const auto adr:mac){
+      Serial.print(adr, HEX);
+    }
+    Serial.println();
   }
   /** Read the load cells and send the OSC msgs. **/
   if(now>task2_nextExecution){
